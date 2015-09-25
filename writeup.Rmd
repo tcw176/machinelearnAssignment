@@ -1,0 +1,122 @@
+---
+title: "Practical Machine Learning Course Write-Up"
+author: "Tyrone Wong"
+date: "August 14, 2015"
+output: html_document
+---
+
+```{r, message=FALSE, warning=FALSE}
+library(caret)
+library(plyr)
+library(dplyr)
+library(doParallel)
+registerDoParallel(cores=2)
+```
+
+#Summary
+
+The purpose of this report is to predict how well subjects performed an exercise using data recorded from sensors located on the subjects. Six participants were asked to perform barbell lifts correctly and incorrectly and they were assessed by an expert. Their movements were tracked using 4 sensors located on a belt, forearm, arm and dumbell of the subject.Accelerometer, gyroscope and magnometer sensors were fixed to each location. Each sensor measured the position in the X, Y, Z directions. Euler angles (roll, pitch and yaw) were calculated for each location. Also eight summary statistics were calculated for each Euler angle (kurtosis, skewness, max, min, amplitude, variance, average, and standard deviation). In addition, 2 other calculated measurements for total acceleration for each location and variance in acceleration for each location were included. Finally, seven classifier variables and the outcome "classe" were included in the data set for a total of 160 variables.
+
+## Data Processing
+
+The data set was read into R and explored. A seed was set to make the data set reproducible. Also, "#DIV/0!" values were converted to NA.
+
+
+```{r, echo=FALSE, }
+set.seed(8888)
+adata <- read.csv("pml-training.csv", na.strings = "#DIV/0!")
+adata <- filter(adata, new_window == "no")
+```
+
+After exploring of the data set, the following variables were selected:
+
+* 36 (3X4X3) Directionional measurements for each location, coded as sensor_location_direction 3x4x3
+
+* 12 (3X4) Euler angles for each location, coded as eulerAngle_location (3x4)
+
+* 4 (1x4) total acceleration measurements for each location, coded as total_accel_location
+
+* 1 classe variable as the outcome
+
+The total number of variables for analysis was 53.
+
+The classifiers were removed since it is believed that they wouldn't have any predictive power.
+
+The calcuated Euler summary statistics indicated by the variable new_window were removed since there was little data for these calculations and since they would be correlated to the actual measurements taken by the sensors. It is assumed that they would have little predictive value.
+
+The subset of data were selected as follows:
+
+```{r}
+head(colnames(adata))
+
+adata2 <- subset(adata, select = c(8, 9, 10, 11, 37, 38, 39, 40, 41, 42, 43, 44,
+                                   45, 46, 47, 48, 49, 60, 61, 62, 63, 64, 65, 
+                                   66, 67, 68, 84, 85, 86, 102, 113, 114, 115, 
+                                   116, 117, 118, 119, 120, 121, 122, 123, 124, 
+                                   140, 151, 152, 153, 154, 155, 156, 157, 158, 
+                                   159, 160))
+
+chkNA <- is.na(adata2)
+head(apply(chkNA, 2, sum))
+
+```
+
+There were no NA values found that could result in problems when training the model.
+
+A training data set, testing data set and cross validation data set were created as follows:
+
+```{r}
+trainIndex <- createDataPartition(adata2$classe, p = 0.6, list = FALSE)
+training <- adata2[trainIndex,]
+
+OtherData <- adata2[-trainIndex,]
+
+Index2 <- createDataPartition(OtherData$classe, p=0.5, list=FALSE)
+CrossVal <- OtherData[Index2,]
+testing <- OtherData[-Index2,]
+```
+
+The Random Forests model was chosen and trained using the caret package. Predictions were made on the testing data set using the model built.
+
+```{r, eval=TRUE, cache=TRUE, warning=FALSE, message=FALSE}
+model1 <- train(classe~., data=training, method="rf")
+pred1 <- predict(model1,testing)
+
+```
+
+A confusion Matrix was generated using the prediction and the actual classe outcome for the test set:
+
+```{r}
+confusionMatrix(pred1, testing$classe)
+```
+
+Accuracy was excellent at over 99%. All other measurements of model error were excellent. Since the accuracy was so high, using the cross validation data set was unnecessary.
+
+The model was then applied to the predict the classe outcome for the 20 test cases in the file
+"pml-testing.csv"
+
+```{r}
+tdata <- read.csv("pml-testing.csv")
+tdata <- subset(tdata, select = c(8, 9, 10, 11, 37, 38, 39, 40, 41, 42, 43, 44,
+                                   45, 46, 47, 48, 49, 60, 61, 62, 63, 64, 65, 
+                                   66, 67, 68, 84, 85, 86, 102, 113, 114, 115, 
+                                   116, 117, 118, 119, 120, 121, 122, 123, 124, 
+                                   140, 151, 152, 153, 154, 155, 156, 157, 158, 
+                                   159, 160))
+
+predTest <- predict(model1,tdata)
+```
+
+The files to generate the answers to the test set were created:
+
+```{r, eval=FALSE, results=FALSE}
+pml_write_files = function(x){
+      n = length(x)
+      for(i in 1:n){
+            filename = paste0("problem_id_",i,".txt")
+            write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+      }
+}
+
+pml_write_files(predTest)
+```
