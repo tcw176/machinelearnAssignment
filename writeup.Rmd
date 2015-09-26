@@ -91,7 +91,18 @@ A confusion Matrix was generated using the prediction and the actual classe outc
 confusionMatrix(pred1, testing$classe)
 ```
 
-Accuracy was excellent at over 99%. All other measurements of model error were excellent. Since the accuracy was so high, using the cross validation data set was unnecessary.
+Accuracy was excellent at over 99%. All other measurements of model error were excellent. 
+
+The model was cross validated again using the CrossVal data set:
+
+```{r, message=FALSE, warning=FALSE}
+pred2 <- predict(model1, CrossVal)
+
+confusionMatrix(pred2, CrossVal$classe)
+
+```
+
+Again, accuracy was excellent at over 99%. All other measurements of model error were excellent. 
 
 The model was then applied to the predict the classe outcome for the 20 test cases in the file
 "pml-testing.csv"
