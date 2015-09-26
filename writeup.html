@@ -75,24 +75,29 @@ library(doParallel)
 registerDoParallel(cores=2)</code></pre>
 <div id="summary" class="section level1">
 <h1>Summary</h1>
-<p>The purpose of this report is to predict how well subjects performed an exercise using data recorded from sensors located on the subjects. Six participants were asked to perform barbell lifts correctly and incorrectly and they were assessed by an expert. Their movements were tracked using 4 sensors located on a belt, forearm, arm and dumbell of the subject.Accelerometer, gyroscope and magnometer sensors were fixed to each location. Each sensor measured the position in the X, Y, Z directions. Euler angles (roll, pitch and yaw) were calculated for each location. Also eight summary statistics were calculated for each Euler angle (kurtosis, skewness, max, min, amplitude, variance, average, and standard deviation). In addition, 2 other calculated measurements for total acceleration for each location and variance in acceleration for each location were included. Finally, seven classifier variables and the outcome “classe” were included in the data set for a total of 160 variables.</p>
-<div id="data-processing" class="section level2">
-<h2>Data Processing</h2>
+<p>The purpose of this report is to predict how well subjects performed an exercise using data recorded from sensors located on the subjects. Six participants were asked to perform barbell lifts correctly and incorrectly and they were assessed by an expert. Their movements were tracked using four sensors located on a belt, forearm, arm and dumbell of the subject. Accelerometer, gyroscope and magnometer sensors were fixed to each location. Each sensor measured the position in the X, Y, Z directions. Euler angles (roll, pitch and yaw) were calculated for each location. Also eight summary statistics were calculated for each Euler angle (kurtosis, skewness, max, min, amplitude, variance, average, and standard deviation). In addition, two other calculated measurements for total acceleration for each location and variance in acceleration for each location were included. Finally, seven classifier variables and the outcome “classe” were a part of the data set for a total of 160 variables.</p>
+<div id="data-processing-and-analysis" class="section level2">
+<h2>Data Processing and Analysis</h2>
 <p>The data set was read into R and explored. A seed was set to make the data set reproducible. Also, “#DIV/0!” values were converted to NA.</p>
+<pre class="r"><code>set.seed(8888)
+adata &lt;- read.csv(&quot;pml-training.csv&quot;, na.strings = &quot;#DIV/0!&quot;)
+adata &lt;- filter(adata, new_window == &quot;no&quot;)
+head(colnames(adata), 10)</code></pre>
+<pre><code>##  [1] &quot;X&quot;                    &quot;user_name&quot;            &quot;raw_timestamp_part_1&quot;
+##  [4] &quot;raw_timestamp_part_2&quot; &quot;cvtd_timestamp&quot;       &quot;new_window&quot;          
+##  [7] &quot;num_window&quot;           &quot;roll_belt&quot;            &quot;pitch_belt&quot;          
+## [10] &quot;yaw_belt&quot;</code></pre>
 <p>After exploring of the data set, the following variables were selected:</p>
 <ul>
-<li><p>36 (3X4X3) Directionional measurements for each location, coded as sensor_location_direction 3x4x3</p></li>
-<li><p>12 (3X4) Euler angles for each location, coded as eulerAngle_location (3x4)</p></li>
+<li><p>36 (3x4x3) Directionional measurements for each location, coded as sensor_location_direction</p></li>
+<li><p>12 (3x4) Euler angles for each location, coded as eulerAngle_location</p></li>
 <li><p>4 (1x4) total acceleration measurements for each location, coded as total_accel_location</p></li>
 <li><p>1 classe variable as the outcome</p></li>
 </ul>
-<p>The total number of variables for analysis was 53.</p>
-<p>The classifiers were removed since it is believed that they wouldn’t have any predictive power.</p>
-<p>The calcuated Euler summary statistics indicated by the variable new_window were removed since there was little data for these calculations and since they would be correlated to the actual measurements taken by the sensors. It is assumed that they would have little predictive value.</p>
+<p>The total number of variables used for analysis was 53.</p>
+<p>The classifier variables were removed since it is believed that they wouldn’t have any predictive power.</p>
+<p>The calcuated Euler summary statistics indicated by the variable new_window were removed since there was little data for these calculations and since they would be correlated to the actual measurements taken by the sensors. It is assumed that they would have little predictive value. These summary statistics yielded near zero variables because of their low frequency.</p>
 <p>The subset of data were selected as follows:</p>
-<pre class="r"><code>head(colnames(adata))</code></pre>
-<pre><code>## [1] &quot;X&quot;                    &quot;user_name&quot;            &quot;raw_timestamp_part_1&quot;
-## [4] &quot;raw_timestamp_part_2&quot; &quot;cvtd_timestamp&quot;       &quot;new_window&quot;</code></pre>
 <pre class="r"><code>adata2 &lt;- subset(adata, select = c(8, 9, 10, 11, 37, 38, 39, 40, 41, 42, 43, 44,
                                    45, 46, 47, 48, 49, 60, 61, 62, 63, 64, 65, 
                                    66, 67, 68, 84, 85, 86, 102, 113, 114, 115, 
@@ -100,7 +105,26 @@ registerDoParallel(cores=2)</code></pre>
                                    140, 151, 152, 153, 154, 155, 156, 157, 158, 
                                    159, 160))
 
-chkNA &lt;- is.na(adata2)
+colnames(adata2)</code></pre>
+<pre><code>##  [1] &quot;roll_belt&quot;            &quot;pitch_belt&quot;           &quot;yaw_belt&quot;            
+##  [4] &quot;total_accel_belt&quot;     &quot;gyros_belt_x&quot;         &quot;gyros_belt_y&quot;        
+##  [7] &quot;gyros_belt_z&quot;         &quot;accel_belt_x&quot;         &quot;accel_belt_y&quot;        
+## [10] &quot;accel_belt_z&quot;         &quot;magnet_belt_x&quot;        &quot;magnet_belt_y&quot;       
+## [13] &quot;magnet_belt_z&quot;        &quot;roll_arm&quot;             &quot;pitch_arm&quot;           
+## [16] &quot;yaw_arm&quot;              &quot;total_accel_arm&quot;      &quot;gyros_arm_x&quot;         
+## [19] &quot;gyros_arm_y&quot;          &quot;gyros_arm_z&quot;          &quot;accel_arm_x&quot;         
+## [22] &quot;accel_arm_y&quot;          &quot;accel_arm_z&quot;          &quot;magnet_arm_x&quot;        
+## [25] &quot;magnet_arm_y&quot;         &quot;magnet_arm_z&quot;         &quot;roll_dumbbell&quot;       
+## [28] &quot;pitch_dumbbell&quot;       &quot;yaw_dumbbell&quot;         &quot;total_accel_dumbbell&quot;
+## [31] &quot;gyros_dumbbell_x&quot;     &quot;gyros_dumbbell_y&quot;     &quot;gyros_dumbbell_z&quot;    
+## [34] &quot;accel_dumbbell_x&quot;     &quot;accel_dumbbell_y&quot;     &quot;accel_dumbbell_z&quot;    
+## [37] &quot;magnet_dumbbell_x&quot;    &quot;magnet_dumbbell_y&quot;    &quot;magnet_dumbbell_z&quot;   
+## [40] &quot;roll_forearm&quot;         &quot;pitch_forearm&quot;        &quot;yaw_forearm&quot;         
+## [43] &quot;total_accel_forearm&quot;  &quot;gyros_forearm_x&quot;      &quot;gyros_forearm_y&quot;     
+## [46] &quot;gyros_forearm_z&quot;      &quot;accel_forearm_x&quot;      &quot;accel_forearm_y&quot;     
+## [49] &quot;accel_forearm_z&quot;      &quot;magnet_forearm_x&quot;     &quot;magnet_forearm_y&quot;    
+## [52] &quot;magnet_forearm_z&quot;     &quot;classe&quot;</code></pre>
+<pre class="r"><code>chkNA &lt;- is.na(adata2)
 head(apply(chkNA, 2, sum))</code></pre>
 <pre><code>##        roll_belt       pitch_belt         yaw_belt total_accel_belt 
 ##                0                0                0                0 
@@ -163,7 +187,7 @@ tdata &lt;- subset(tdata, select = c(8, 9, 10, 11, 37, 38, 39, 40, 41, 42, 43, 4
                                    159, 160))
 
 predTest &lt;- predict(model1,tdata)</code></pre>
-<p>The files to generate the answers to the test set were created:</p>
+<p>The files to generate the answers to the test set submission questions were created using:</p>
 <pre class="r"><code>pml_write_files = function(x){
       n = length(x)
       for(i in 1:n){
